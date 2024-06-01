@@ -1,0 +1,52 @@
+name: "CodeQL"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+env:
+  python_version: '3.12'
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    permissions:
+      security-events: write  # for github/codeql-action/autobuild to send a status report
+    name: Analyze
+    runs-on: ubuntu-22.04
+    steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@f086349bfa2bd1361f7909c78558e816508cdc10 # v2.8.0
+      with:
+        egress-policy: audit
+
+    - name: Checkout repository
+      uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+    - name: Set up Python
+      uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
+      with:
+        python-version: ${{ env.python_version }}
+        cache: pip
+    - name: Install Linux Dependencies
+      run: >
+        sudo apt-get update -qq && sudo apt-get install -qq --no-install-recommends
+        libgirepository1.0-dev
+    - name: Install Poetry
+      run: python${{ env.python_version }} -m pip install --constraint=.github/constraints.txt poetry
+    - name: Configure Poetry
+      run: poetry config virtualenvs.in-project true
+    - name: Install Python Dependencies
+      run: |
+        poetry install --no-interaction
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@9fdb3e49720b44c48891d036bb502feb25684276 # v3.25.6
+      with:
+        languages: python
+        # Override the default behavior so that the action doesn't attempt
+        # to auto-install Python dependencies
+        setup-python-dependencies: false
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@9fdb3e49720b44c48891d036bb502feb25684276 # v3.25.6
